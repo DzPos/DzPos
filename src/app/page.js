@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ShoppingBag, QrCode, CreditCard, ShieldCheck, Tablet, 
-  ChevronRight, BarChart3, Archive, Layers, ArrowRight, ExternalLink 
+  ChevronRight, BarChart3, Archive, Layers, ArrowRight, ExternalLink,
+  FileText
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -57,7 +58,6 @@ export default function LandingPage() {
         <nav style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <a href="#features" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }} className="nav-link">Features</a>
           <a href="#preview" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }} className="nav-link">Preview</a>
-          <a href="#pricing" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }} className="nav-link">Pricing</a>
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -141,7 +141,7 @@ export default function LandingPage() {
             maxWidth: '640px',
             margin: '0 auto 40px auto'
           }}>
-            Tailored specifically for local retail and cafés in Algeria. Monitor inventory, compile End-of-Day reports, and secure card deposits instantly using our integrated payment simulator.
+            Tailored specifically for local retail and cafés in Algeria. Monitor inventory, compile End-of-Day reports, track customer debts, and process card payments instantly using our integrated payment simulator.
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
@@ -357,146 +357,25 @@ export default function LandingPage() {
                 width: '46px',
                 height: '46px',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                color: 'var(--primary)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                color: 'var(--danger)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: '20px'
               }}>
-                <ShieldCheck size={24} />
+                <FileText size={24} />
               </div>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px' }}>Secure Rest APIs</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px' }}>Debts Ledger / سجل الديون</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.5 }}>
-                No secret keys are exposed frontend. API integrations check gateway values server-side for maximum reliability and protection.
+                Record outstanding customer debts during checkout, track remaining balances, settle amounts via cash or SofizPay, and view historical transaction logs.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* PRICING SECTION */}
-      <section id="pricing" style={{ padding: '80px 24px' }}>
-        <div style={{ maxWidth: '1020px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <h2 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '16px' }}>Transparent, Simple Plans</h2>
-            <p style={{ color: 'var(--text-muted)', maxWidth: '580px', margin: '0 auto' }}>
-              Get started with our free demo account or connect your shop's SofizPay merchant key for production checkout.
-            </p>
-          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', flexWrap: 'wrap' }}>
-            {/* Free Plan */}
-            <div style={{
-              backgroundColor: 'var(--bg-secondary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '40px 32px',
-              maxWidth: '340px',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between'
-            }}>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-muted)' }}>Demo / Sandbox</h3>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '20px 0' }}>
-                  <span style={{ fontSize: '36px', fontWeight: 800 }}>0 DA</span>
-                  <span style={{ color: 'var(--text-muted)' }}>/ month</span>
-                </div>
-                <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.5 }}>
-                  Perfect for exploring the POS system features and testing payment flows via our simulator.
-                </p>
-                <div style={{ borderTop: '1px solid var(--border-color)', padding: '20px 0' }}>
-                  <ul style={{ display: 'flex', flexDirection: 'column', gap: '12px', listStyle: 'none', fontSize: '13px' }}>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: 'var(--secondary)' }}>✓</span>
-                      <span>Access to Register Terminal</span>
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: 'var(--secondary)' }}>✓</span>
-                      <span>Seeded Algerian Café Catalog</span>
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: 'var(--secondary)' }}>✓</span>
-                      <span>Interactive Payment Simulator</span>
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: 'var(--secondary)' }}>✓</span>
-                      <span>19% VAT Calculations</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <Link href="/signup" className="btn btn-secondary" style={{ textDecoration: 'none', width: '100%', display: 'flex', justifyContent: 'center', height: '42px', marginTop: '20px' }}>
-                Start Free Demo
-              </Link>
-            </div>
-
-            {/* Pro Plan */}
-            <div style={{
-              backgroundColor: 'var(--bg-secondary)',
-              border: '2px solid var(--primary)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '40px 32px',
-              maxWidth: '340px',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              boxShadow: 'var(--shadow-glow)',
-              position: 'relative'
-            }}>
-              <span style={{
-                position: 'absolute',
-                top: '-12px',
-                right: '24px',
-                backgroundColor: 'var(--primary)',
-                color: 'white',
-                fontSize: '11px',
-                fontWeight: 700,
-                padding: '4px 12px',
-                borderRadius: 'var(--radius-full)'
-              }}>
-                RECOMMENDED
-              </span>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)' }}>Merchant Integration</h3>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '20px 0' }}>
-                  <span style={{ fontSize: '36px', fontWeight: 800 }}>Free</span>
-                  <span style={{ color: 'var(--text-muted)' }}>/ no fixed fees</span>
-                </div>
-                <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.5 }}>
-                  Connect your live SofizPay account to process payments from customers directly via EDAHABIA & CIB.
-                </p>
-                <div style={{ borderTop: '1px solid var(--border-color)', padding: '20px 0' }}>
-                  <ul style={{ display: 'flex', flexDirection: 'column', gap: '12px', listStyle: 'none', fontSize: '13px' }}>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: 'var(--secondary)' }}>✓</span>
-                      <strong>Everything in Sandbox Demo</strong>
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: 'var(--secondary)' }}>✓</span>
-                      <span>Live SofizPay Account Link</span>
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: 'var(--secondary)' }}>✓</span>
-                      <span>Real CIB/EDAHABIA QR scanning</span>
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: 'var(--secondary)' }}>✓</span>
-                      <span>Persistent Sales & Inventory database</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <Link href="/signup" className="checkout-btn" style={{ textDecoration: 'none', width: '100%', display: 'flex', justifyContent: 'center', height: '42px', marginTop: '20px' }}>
-                Register Merchant Shop
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* FINAL CALL TO ACTION */}
       <section style={{
