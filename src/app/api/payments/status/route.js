@@ -50,6 +50,59 @@ export async function GET(req) {
     }
 
 
+    // If payment method is 'cib' (CIB QR — hosted bank page URL), check via cib-transaction-check directly
+    if (paymentMethod === 'cib') {
+      try {
+        const checkUrl = `https://sofizpay.com/cib-transaction-check/?order_number=${cibId}`;
+        console.log('Polling CIB QR transaction status:', checkUrl);
+        
+        const checkRes = await fetch(checkUrl);
+        if (!checkRes.ok) {
+          throw new Error(`SofizPay Check API returned HTTP status ${checkRes.status}`);
+        }
+        
+        const response = await checkRes.json();
+        const dataObj = response.data || response;
+        
+        if (dataObj) {
+          const orderStatus = (dataObj.orderStatus !== undefined && dataObj.orderStatus !== null) ? Number(dataObj.orderStatus) : null;
+          const respCode = (dataObj.respCode !== undefined && dataObj.respCode !== null) ? String(dataObj.respCode) : null;
+          const errorMessage = dataObj.errorMessage;
+          const rawStatus = dataObj.status;
+          
+          let cibStatus = 'PENDING';
+          
+          if (orderStatus === 2 || respCode === '00' || respCode === '0' || String(rawStatus).toLowerCase() === 'success') {
+            cibStatus = 'PAID';
+          } else if (
+            orderStatus === 3 ||
+            orderStatus === 6 ||
+            (respCode && respCode !== '00' && respCode !== '0') ||
+            (errorMessage && String(errorMessage).toLowerCase().includes('rejected')) ||
+            String(rawStatus).toLowerCase() === 'fail' ||
+            String(rawStatus).toLowerCase() === 'failed'
+          ) {
+            cibStatus = 'FAILED';
+          }
+
+          if (cibStatus === 'PAID') {
+            await completeSale(saleId, userId);
+            return NextResponse.json({ success: true, status: 'success' });
+          } else if (cibStatus === 'FAILED') {
+            await db.execute({
+              sql: 'UPDATE sales SET status = ? WHERE id = ? AND user_id = ?',
+              args: ['failed', saleId, userId]
+            });
+            return NextResponse.json({ success: true, status: 'failed' });
+          }
+        }
+        return NextResponse.json({ success: true, status: 'pending' });
+      } catch (cibErr) {
+        console.error('CIB QR status check failed:', cibErr);
+        return NextResponse.json({ success: true, status: currentStatus });
+      }
+    }
+
     // If payment method is sofizpay (QR scan Stellar payment), check via SDK history
     if (paymentMethod === 'sofizpay') {
       try {
