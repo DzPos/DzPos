@@ -1545,7 +1545,7 @@ export default function DzPos() {
                                   style={{ padding: '6px 12px', fontSize: '13px' }}
                                   onClick={() => {
                                     setSelectedDebt(debt);
-                                    setSettleAmount(debt.remaining_amount.toString());
+                                    setSettleAmount((Math.round(debt.remaining_amount * 100) / 100).toString());
                                     setIsSettleModalOpen(true);
                                   }}
                                 >
@@ -2036,6 +2036,18 @@ export default function DzPos() {
                   <span>TOTAL DUE:</span>
                   <span>{currentReceipt.sale.total_amount.toFixed(2)} DZD</span>
                 </div>
+                {currentReceipt.sale.amount_paid !== undefined && currentReceipt.sale.amount_paid !== null && (
+                  <div className="receipt-row" style={{ fontSize: '12px', marginTop: '2px' }}>
+                    <span>Amount Paid / المدفوع:</span>
+                    <span>{Number(currentReceipt.sale.amount_paid).toFixed(2)} DZD</span>
+                  </div>
+                )}
+                {currentReceipt.sale.debt_amount !== undefined && currentReceipt.sale.debt_amount !== null && Number(currentReceipt.sale.debt_amount) > 0 && (
+                  <div className="receipt-row" style={{ fontSize: '12px', marginTop: '2px', color: '#ef4444', fontWeight: 'bold' }}>
+                    <span>Remaining Debt / الدين المتبقي:</span>
+                    <span>{Number(currentReceipt.sale.debt_amount).toFixed(2)} DZD</span>
+                  </div>
+                )}
 
                 <div className="receipt-divider"></div>
                 
