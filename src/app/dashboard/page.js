@@ -56,6 +56,13 @@ export default function DzPos() {
   const [isPollingStatus, setIsPollingStatus] = useState(false);
   const pollingTimerRef = useRef(null);
 
+  // CIB QR payment processing state
+  const [isCibQrOpen, setIsCibQrOpen] = useState(false);
+  const [cibQrDetails, setCibQrDetails] = useState(null); // { saleId, cibTransactionId, paymentUrl, isMock, amount }
+  const [cibQrStatus, setCibQrStatus] = useState('pending'); // 'pending' | 'success' | 'failed'
+  const [isCibPolling, setIsCibPolling] = useState(false);
+  const cibPollingTimerRef = useRef(null);
+
   // Receipt modal state
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [currentReceipt, setCurrentReceipt] = useState(null); // { sale, items }
@@ -501,6 +508,12 @@ export default function DzPos() {
         if (checkoutMethod === 'card' && amountPaidVal > 0) {
           // Redirect directly to SofizPay CIB payment page
           window.location.href = data.paymentUrl;
+        } else if (checkoutMethod === 'cib' && amountPaidVal > 0) {
+          // Open CIB QR Modal — show the paymentUrl as a scannable QR code
+          setCibQrDetails(data);
+          setCibQrStatus('pending');
+          setIsCibQrOpen(true);
+          startPollingCibPayment(data.cibTransactionId, data.saleId);
         } else if (checkoutMethod === 'sofizpay' && amountPaidVal > 0) {
           // Open SofizPay QR Modal for mobile scanning
           setSofizPayDetails(data);
@@ -574,6 +587,57 @@ export default function DzPos() {
   const handleCloseSofizPayModal = () => {
     stopPolling();
     setIsSofizPayOpen(false);
+  };
+
+  // --- CIB QR Polling ---
+  const startPollingCibPayment = (cibId, saleId) => {
+    if (!merchant?.id) return;
+    if (isCibPolling) return;
+
+    setIsCibPolling(true);
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/payments/status?cibId=${cibId}&saleId=${saleId}&isSandbox=${sofizpayConfig.isSandbox}`, {
+          headers: { 'x-user-id': merchant.id }
+        });
+        const statusData = await res.json();
+
+        if (statusData.success) {
+          if (statusData.status === 'success') {
+            setCibQrStatus('success');
+            setIsCibPolling(false);
+            clearInterval(cibPollingTimerRef.current);
+            setTimeout(() => {
+              setIsCibQrOpen(false);
+              clearCart();
+              fetchProducts();
+              loadReceipt(saleId);
+            }, 2000);
+          } else if (statusData.status === 'failed') {
+            setCibQrStatus('failed');
+            setIsCibPolling(false);
+            clearInterval(cibPollingTimerRef.current);
+          }
+        }
+      } catch (err) {
+        console.error('Error polling CIB QR payment status:', err);
+      }
+    };
+
+    checkStatus();
+    cibPollingTimerRef.current = setInterval(checkStatus, 3000);
+  };
+
+  const stopCibPolling = () => {
+    setIsCibPolling(false);
+    if (cibPollingTimerRef.current) {
+      clearInterval(cibPollingTimerRef.current);
+    }
+  };
+
+  const handleCloseCibQrModal = () => {
+    stopCibPolling();
+    setIsCibQrOpen(false);
   };
 
   // Simulator helper to trigger complete payment on mock transaction
@@ -1529,7 +1593,7 @@ export default function DzPos() {
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Payment Method</label>
-                  <div className="payment-grid">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div 
                       className={`payment-option ${checkoutMethod === 'cash' ? 'selected' : ''}`}
                       onClick={() => setCheckoutMethod('cash')}
@@ -1542,7 +1606,15 @@ export default function DzPos() {
                       onClick={() => setCheckoutMethod('sofizpay')}
                     >
                       <QrCode className="payment-option-icon" />
-                      <span className="payment-option-label">SofizPay</span>
+                      <span className="payment-option-label">SofizPay (Stellar)</span>
+                    </div>
+                    <div 
+                      className={`payment-option ${checkoutMethod === 'cib' ? 'selected' : ''}`}
+                      onClick={() => setCheckoutMethod('cib')}
+                      style={checkoutMethod === 'cib' ? { borderColor: '#2563eb', background: 'rgba(37,99,235,0.12)' } : {}}
+                    >
+                      <CreditCard className="payment-option-icon" style={{ color: checkoutMethod === 'cib' ? '#2563eb' : undefined }} />
+                      <span className="payment-option-label" style={{ color: checkoutMethod === 'cib' ? '#2563eb' : undefined }}>CIB QR Code</span>
                     </div>
                   </div>
                 </div>
@@ -1632,6 +1704,16 @@ export default function DzPos() {
                     <span>
                       الدين يُحسب تلقائياً من مبلغ معاملة الـ Stellar.
                       &nbsp;<strong style={{ color: 'var(--secondary)' }}>Debt is auto-detected</strong> from the QR payment memo.
+                    </span>
+                  </div>
+                )}
+
+                {checkoutMethod === 'cib' && (
+                  <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.25)', fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CreditCard size={15} style={{ flexShrink: 0, color: '#2563eb' }} />
+                    <span>
+                      سيتم إنشاء رمز QR خاص ببطاقة CIB يمكن للعميل مسحه بهاتفه.
+                      &nbsp;<strong style={{ color: '#2563eb' }}>Customer scans QR</strong> to pay via their CIB bank card on their phone.
                     </span>
                   </div>
                 )}
@@ -1756,6 +1838,121 @@ export default function DzPos() {
                     <h4 style={{ fontSize: '18px', fontWeight: 'bold' }}>Payment Cancelled / Failed</h4>
                     <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>The transaction was rejected by customer or gateway timed out.</p>
                     <button className="btn btn-secondary" onClick={handleCloseSofizPayModal} style={{ marginTop: '12px' }}>
+                      Close Modal
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2b. CIB QR PAYMENT MODAL */}
+      {isCibQrOpen && cibQrDetails && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '420px' }}>
+            <div className="modal-header" style={{ borderBottom: '2px solid rgba(37,99,235,0.3)' }}>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CreditCard size={20} style={{ color: '#2563eb' }} />
+                CIB QR Payment
+              </h3>
+              <button className="modal-close" onClick={handleCloseCibQrModal}><X size={20} /></button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="sofizpay-qr-container">
+                <span className="sofizpay-logo-badge" style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)', letterSpacing: '0.5px' }}>
+                  CIB BANK CARD PAYMENT
+                </span>
+                
+                {cibQrStatus === 'pending' && (
+                  <>
+                    <div className="qr-box" style={{ border: '3px solid rgba(37,99,235,0.3)', borderRadius: '12px', padding: '8px', background: 'white' }}>
+                      {cibQrDetails.isMock ? (
+                        // Mock mode: show QR of a placeholder CIB URL
+                        <QRCodeSVG
+                          value={`https://sofizpay.com/cib-pay/?sim=true&amount=${cibQrDetails.amount}&id=${cibQrDetails.cibTransactionId}`}
+                          size={180}
+                          bgColor="#ffffff"
+                          fgColor="#1d4ed8"
+                          level="H"
+                        />
+                      ) : (
+                        // Real mode: encode the actual SofizPay-hosted CIB payment page URL
+                        <QRCodeSVG
+                          value={cibQrDetails.paymentUrl}
+                          size={180}
+                          bgColor="#ffffff"
+                          fgColor="#1d4ed8"
+                          level="H"
+                        />
+                      )}
+                    </div>
+
+                    <p style={{ fontSize: '14px', fontWeight: 'bold', marginTop: '8px' }}>
+                      Scan with CIB Mobile App / مسح برنامج CIB
+                    </p>
+
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '300px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span>Amount / المبلغ المطلوب: <strong style={{ color: '#2563eb', fontSize: '15px' }}>{parseFloat(cibQrDetails.amount).toFixed(2)} DZD</strong></span>
+                      {cibQrDetails.isMock && (
+                        <span style={{ fontSize: '11px', color: 'var(--warning)' }}>⚠ Simulation mode — no real bank account configured</span>
+                      )}
+                    </p>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#2563eb', fontSize: '12px' }}>
+                      <div className="pulse-loader">
+                        <div className="pulse-dot" style={{ background: '#2563eb' }}></div>
+                        <div className="pulse-dot" style={{ background: '#2563eb' }}></div>
+                        <div className="pulse-dot" style={{ background: '#2563eb' }}></div>
+                      </div>
+                      <span>Waiting for CIB payment confirmation...</span>
+                    </div>
+
+                    {/* Simulator panel */}
+                    <div className="simulator-widget" style={{ borderColor: 'rgba(37,99,235,0.25)', background: 'rgba(37,99,235,0.05)' }}>
+                      <div className="simulator-header" style={{ color: '#2563eb' }}>
+                        <CreditCard size={16} />
+                        <span>CIB Payment Simulator</span>
+                      </div>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'left', lineHeight: '1.4' }}>
+                        Simulated CIB transaction. Click to trigger status immediately:
+                      </p>
+                      <div className="simulator-actions">
+                        <button 
+                          className="btn btn-success" 
+                          style={{ flexGrow: 1, padding: '8px 12px', fontSize: '12px' }}
+                          onClick={() => simulatePaymentSuccess(cibQrDetails.cibTransactionId, cibQrDetails.saleId, true)}
+                        >
+                          Simulate Success
+                        </button>
+                        <button 
+                          className="btn btn-danger" 
+                          style={{ flexGrow: 1, padding: '8px 12px', fontSize: '12px' }}
+                          onClick={() => simulatePaymentSuccess(cibQrDetails.cibTransactionId, cibQrDetails.saleId, false)}
+                        >
+                          Simulate Failure
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {cibQrStatus === 'success' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px 0' }}>
+                    <CheckCircle2 size={64} style={{ color: '#2563eb' }} />
+                    <h4 style={{ fontSize: '18px', fontWeight: 'bold' }}>CIB Payment Confirmed!</h4>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Bank card transaction processed successfully.</p>
+                  </div>
+                )}
+
+                {cibQrStatus === 'failed' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px 0' }}>
+                    <Ban size={64} style={{ color: 'var(--danger)' }} />
+                    <h4 style={{ fontSize: '18px', fontWeight: 'bold' }}>CIB Payment Failed</h4>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>The CIB transaction was declined or timed out.</p>
+                    <button className="btn btn-secondary" onClick={handleCloseCibQrModal} style={{ marginTop: '12px' }}>
                       Close Modal
                     </button>
                   </div>
