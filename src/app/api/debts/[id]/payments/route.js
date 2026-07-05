@@ -18,7 +18,7 @@ export async function GET(req, { params }) {
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Unauthorized: Missing x-user-id header' }, { status: 401 });
     }
-    const { id: debtId } = params;
+    const { id: debtId } = await params;
 
     // Verify debt belongs to this user
     const debtCheck = await db.execute({
@@ -53,7 +53,7 @@ export async function POST(req, { params }) {
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Unauthorized: Missing x-user-id header' }, { status: 401 });
     }
-    const { id: debtId } = params;
+    const { id: debtId } = await params;
     const body = await req.json();
     const { amount, paymentMethod } = body;
 
@@ -72,14 +72,14 @@ export async function POST(req, { params }) {
     }
 
     const debt = debtRes.rows[0];
-    const remainingAmount = parseFloat(debt.remaining_amount);
-    const payAmount = parseFloat(amount);
+    const remainingAmount = Math.round(parseFloat(debt.remaining_amount) * 100) / 100;
+    const payAmount = Math.round(parseFloat(amount) * 100) / 100;
 
     if (payAmount > remainingAmount) {
       return NextResponse.json({ success: false, error: 'Payment amount exceeds remaining debt' }, { status: 400 });
     }
 
-    const newRemaining = remainingAmount - payAmount;
+    const newRemaining = Math.round((remainingAmount - payAmount) * 100) / 100;
     const newStatus = newRemaining === 0 ? 'paid' : 'partially_paid';
 
     // Insert payment record
