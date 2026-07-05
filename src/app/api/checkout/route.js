@@ -46,7 +46,7 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: `Product not found: ${item.name}` }, { status: 400 });
       }
       const product = productRes.rows[0];
-      if (paymentMethod !== 'sofizpay' && paymentMethod !== 'card' && product.stock < item.quantity) {
+      if (paymentMethod !== 'sofizpay' && paymentMethod !== 'card' && paymentMethod !== 'cib' && product.stock < item.quantity) {
         return NextResponse.json({ 
           success: false, 
           error: `Insufficient stock for ${product.name}. Available: ${product.stock}, requested: ${item.quantity}` 
@@ -56,7 +56,7 @@ export async function POST(req) {
 
     // If SofizPay/Card and amountPaid > 0, we do online payment gateway.
     // If amountPaid === 0, then this is a 100% debt checkout and can be completed instantly!
-    if ((paymentMethod === 'sofizpay' || paymentMethod === 'card') && amountPaid > 0) {
+    if ((paymentMethod === 'sofizpay' || paymentMethod === 'card' || paymentMethod === 'cib') && amountPaid > 0) {
       const merchantRes = await db.execute({
         sql: 'SELECT sofizpay_key FROM users WHERE id = ?',
         args: [userId]
@@ -80,10 +80,13 @@ export async function POST(req) {
           const phone = customer?.phone || '+213550000000';
           const email = customer?.email || 'customer@dzpos.dz';
           const memo = `Order #${saleId.substring(0, 8)}`;
-          
+
+          // For 'cib' method: use redirect=no to get a URL we can encode as QR.
+          // For 'card' method: also use redirect=no then return the URL for browser redirect.
+          // For 'sofizpay': handled separately via Stellar QR — this branch covers card+cib.
           const makeCibUrl = `https://sofizpay.com/make-cib-transaction/?account=${encodeURIComponent(account)}&amount=${encodeURIComponent(amountPaid)}&full_name=${encodeURIComponent(fullName)}&phone=${encodeURIComponent(phone)}&email=${encodeURIComponent(email)}&return_url=${encodeURIComponent(callbackUrl)}&memo=${encodeURIComponent(memo)}&redirect=no&keep_return_url=False`;
           
-          console.log('Initiating direct CIB transaction:', makeCibUrl);
+          console.log(`Initiating CIB transaction (method=${paymentMethod}):`, makeCibUrl);
           const apiRes = await fetch(makeCibUrl, {
             headers: {
               'Accept': 'application/json',
@@ -102,14 +105,14 @@ export async function POST(req) {
             paymentUrl = response.url || response.payment_url || (response.data && response.data.url) || (response.data && response.data.payment_url) || '';
             isMock = false;
           } else {
-            console.warn('SofizPay direct API returned failure or unexpected structure, falling back to simulator:', response);
+            console.warn('SofizPay CIB API returned failure or unexpected structure, falling back to simulator:', response);
           }
         } catch (sdkErr) {
-          console.error('SofizPay direct API call failed, falling back to simulator:', sdkErr);
+          console.error('SofizPay CIB API call failed, falling back to simulator:', sdkErr);
         }
       }
 
-      // If mock, generate local simulator checkout URL with amountPaid
+      // If mock, generate local simulator URL
       if (isMock) {
         paymentUrl = `/dashboard?payment_simulator=true&cib_id=${cibTransactionId}&sale_id=${saleId}&amount=${amountPaid}`;
       }
